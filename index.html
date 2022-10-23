@@ -62,7 +62,13 @@
         };
 
 
-        function setupVisuals() {
+        function setupVisuals(cameraFrame) {
+
+            const cameraWidth = cameraFrame.width;
+            const cameraHeight = cameraFrame.height;
+
+            cameraSize.width = cameraWidth;
+            cameraSize.height = cameraHeight;
 
             document.getElementById('load').style.display = 'none';
 
@@ -137,7 +143,10 @@
 
         function onResults(results) {
             if (firstFrame) {
-                displaySize = setupVisuals();
+
+                const cameraFrame = results.image;
+
+                displaySize = setupVisuals(cameraFrame);
 
                 displaySize.sx = 0;
                 displaySize.sy = 0;
