@@ -16,6 +16,7 @@
         #container {
             width: 100vw;
             height: 100vh;
+            display: none;
         }
 
         #load {
@@ -24,13 +25,21 @@
             font-size: 64px;
             text-align: center;
             position: relative;
+            background: rgb(238,174,202);
+            background: radial-gradient(circle, rgba(238,174,202,1) 0%, rgba(148,187,233,1) 100%);
         }
 
         .input_load {
-            left: 50%;
+            color: #fff;
+            margin: 0;
             position: absolute;
             top: 50%;
+            left: 50%;
+            margin-right: -50%;
+            transform: translate(-50%, -50%)
+
         }
+
     </style>
 </head>
 
@@ -73,6 +82,7 @@
             document.getElementById('load').style.display = 'none';
 
             const container = document.getElementById("container");
+            container.style.display = 'block';
 
             const containerW = container.clientWidth;
             const containerH = container.clientHeight;
