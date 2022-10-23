@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <style>
+        .input_video {
+            display: none;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #load {
+            min-width: 100vw;
+            min-height: 100vh;
+            font-size: 64px;
+            text-align: center;
+            position: relative;
+        }
+
+        .input_load {
+            left: 50%;
+            position: absolute;
+            top: 50%;
+        }
+    </style>
+</head>
+
+<body>
+<image id='img_ball' style="display: none" src="./img/ball_.png"></image>
+<div id="load">
+    <div class="input_load ">Loading...</div>
+</div>
+<div id="container" class="container">
+    <video class="input_video"></video>
+    <canvas class="output_canvas"></canvas>
+</div>
+<footer>
+    <script type="module">
+        let firstFrame = true;
+        const videoElement = document.getElementsByClassName('input_video')[0];
+        const canvasElement = document.getElementsByClassName('output_canvas')[0];
+        const canvasCtx = canvasElement.getContext('2d');
+
+        const filterArraySize = 5;
+
+        const filterArray = [];
+
+        let displaySize = undefined;
+
+        const cameraSize = {
+            width: 1280,
+            height: 720
+        };
+
+
+        function setupVisuals() {
+
+            document.getElementById('load').style.display = 'none';
+
+            const container = document.getElementById("container");
+
+            const containerW = container.clientWidth;
+            const containerH = container.clientHeight;
+
+            console.log('containerW : ' + containerW);
+            console.log('containerH : ' + containerH);
+
+            canvasElement.width = containerW;
+            canvasElement.height = containerH;
+
+            return {
+                width: containerW,
+                height: containerH
+            }
+
+        }
+
+        function calcCoords(landmarks, idx, displaySize) {
+            let posX = (landmarks[idx].x * displaySize.width);
+            let posY = (landmarks[idx].y * displaySize.height);
+
+            //Display ratio correction
+
+            //posX = posX - (displaySize.sx *2);
+            //posY = posY - (displaySize.sy *2);
+
+            return {
+                x: posX,
+                y: posY,
+                z: landmarks[idx].z
+            }
+        }
+
+        function recalcRatio(displaySize, cameraSize) {
+            if(displaySize.width < cameraSize.width){
+                const removeDSize = cameraSize.width - displaySize.width;
+                displaySize.sx = removeDSize / 2;
+            } else {
+                //displaySize.width = cameraSize.width;
+            }
+
+            if(displaySize.height < cameraSize.height){
+                const removeDSize = cameraSize.height - displaySize.height;
+                displaySize.sy = removeDSize / 2;
+            } else {
+                //displaySize.height = cameraSize.height;
+            }
+            return displaySize;
+        }
+
+        function lowPassFilter(value) {
+
+            filterArray.push(value);
+            if (filterArray.length > filterArraySize) {
+                filterArray.shift();
+            }
+
+            //Calc integral value
+
+            let filteredValue = 0.0;
+
+            for (const filterArrayElement of filterArray) {
+                filteredValue += filterArrayElement;
+            }
+
+            return filteredValue / filterArray.length;
+        }
+
+        function onResults(results) {
+            if (firstFrame) {
+                displaySize = setupVisuals();
+
+                displaySize.sx = 0;
+                displaySize.sy = 0;
+
+                displaySize = recalcRatio(displaySize, cameraSize)
+
+                console.log('displaySize');
+                console.log(displaySize);
+
+                firstFrame = false;
+            }
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            canvasCtx.drawImage(
+                results.image,
+                displaySize.sx, displaySize.sy,
+                cameraSize.width - (displaySize.sx*2),
+                cameraSize.height - (displaySize.sy*2),
+                0,0,
+                displaySize.width,
+                displaySize.height
+            );
+
+            function drawPoint(canvasCtx, coords, color) {
+
+                const oldStyle = canvasCtx.fillStyle;
+                canvasCtx.fillStyle = color;
+                canvasCtx.fillRect(coords.x, coords.y, 10, 10
+                );
+
+                canvasCtx.fillStyle = oldStyle;
+
+            }
+
+
+            function drawImage(canvasCtx, coords, image, sizeBall, displayCoords) {
+
+                const correctionCoeff = lowPassFilter(coords.z);
+
+                const sizeW = sizeBall * correctionCoeff;
+                const sizeH = sizeBall * correctionCoeff;
+
+                const dX = sizeW / 2;
+                const dY = sizeH / 2;
+
+                canvasCtx.drawImage(image, coords.x - dX, coords.y - dY, sizeW, sizeH);
+            }
+
+            if (results.multiFaceLandmarks) {
+                for (const landmarks of results.multiFaceLandmarks) {
+
+                    //console.log(landmarks);
+
+                    //drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_IRIS, {color: '#30FF30'});
+                    //drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, {color: '#FF3030'});
+                    const foreheadCoords = calcCoords(landmarks, 151, displaySize);
+                    const corrZ = 2;
+                    const imageBall = document.getElementById('img_ball')
+                    //drawPoint(canvasCtx, foreheadCoords, '#FF3030');
+                    drawImage(canvasCtx, foreheadCoords, imageBall, 800 * corrZ);
+                    /*
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION,
+                                            {color: '#C0C0C070', lineWidth: 1});
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {color: '#FF3030'});
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, {color: '#FF3030'});
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {color: '#30FF30'});
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, {color: '#30FF30'});
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {color: '#E0E0E0'});
+                                        drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {color: '#E0E0E0'});
+
+                     */
+                }
+            }
+            canvasCtx.restore();
+        }
+
+        const faceMesh = new FaceMesh({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+            }
+        });
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        faceMesh.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await faceMesh.send({image: videoElement});
+            },
+            width: cameraSize.width,
+            height: cameraSize.height
+        });
+        camera.start();
+    </script>
+</footer>
+</body>
+</html>
